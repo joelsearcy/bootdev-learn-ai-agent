@@ -30,7 +30,18 @@ def main():
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
 
-    generate_content(client, messages, verbose)
+    limit = 20
+    iteration = 0
+
+    while True:
+        if iteration >= limit:
+            print(f"Reached maximum iterations ({limit}). Exiting to prevent infinite loop.")
+            break
+        iteration += 1
+        response = generate_content(client, messages, verbose)
+        if response:
+            print(f"Final response:\n{response}")
+            break
 
 def generate_content(client, messages, verbose):
     response = client.models.generate_content(
@@ -46,17 +57,27 @@ def generate_content(client, messages, verbose):
         print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
         print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
 
-    if not response.function_calls:
-        print("Response:")
-        print(response.text)
-        return
+    for candidate in response.candidates:
+        messages.append(candidate.content)
 
+    if not response.function_calls:
+        return response.text
+
+    function_responses = []
     for function_call in response.function_calls:
         function_call_result = call_function(function_call, verbose)
-        if not function_call_result.parts or not function_call_result.parts[0].function_response or not function_call_result.parts[0].function_response.response:
-            raise f"Error processing function call: {function_call.name}"
+        if (
+            not function_call_result.parts
+            or not function_call_result.parts[0].function_response
+        ):
+            raise Exception(f"empty function call result")
         if verbose:
             print(f"-> {function_call_result.parts[0].function_response.response}")
+        function_responses.append(function_call_result.parts[0])
+    messages.append(types.Content(
+        role="tool",
+        parts=function_responses
+    ))
 
    
 if __name__ == "__main__":  
