@@ -17,8 +17,8 @@ def get_file_content(working_directory, file_path):
     try:
         with full_file_path.open('r', encoding='utf-8') as file:
             content = file.read(MAX_CHARS)
-        if file.closed:  # Check if there is more content after reading MAX_CHARS
-            content += f'[...File "{file_path}" truncated at 10000 characters]'
+            if not file.closed and len(content) == MAX_CHARS:  # Check if there is more content after reading MAX_CHARS
+                content += f'[...File "{file_path}" truncated at 10000 characters]'
         return content
     except Exception as e:
         return f'Error: Error reading file "{file_path}": {str(e)}'
